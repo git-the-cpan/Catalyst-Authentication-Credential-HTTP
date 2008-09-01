@@ -1,0 +1,29 @@
+1.000  2008-09-01
+   - Rename to remove Plugin from namespace. This is a pretty breaking change,
+     as lots of things work differently with the new auth refactor.
+   - Pull out some functionality which I think is better in other 
+     modules (realms/stores). With the auth refactor, this module didn't need
+     to do so much. If anyone misses any of the functionality, please yell at
+     me and I'll put it back.
+
+0.11  2008-07-12
+    - Changed cache modules used in the tests to not be deprecated.
+    - Fix RT#31036, and comply with RFC2617 Section 1.2.
+
+0.10  2007-04-26
+    - switch to Module::Install
+
+0.09  2006-12-31
+    - clean up tests
+    - clean up docs
+    - add body to 401 status
+
+0.08  2006-10-12
+    - Fix basic test when using Test::MockObject 1.07 (die if using undefined
+      interfaces)
+
+0.07  2006-09-12
+    - Applied Ton Voon's patch that fixed option propagation for basic auth.
+
+0.06  2006-09-07
+    - Refactored internals into smaller methods
