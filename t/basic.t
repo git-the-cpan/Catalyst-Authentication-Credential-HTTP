@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use Test::More tests => 22;
+use Test::More tests => 21;
 use Test::MockObject::Extends;
 use Test::MockObject;
 use Test::Exception;
@@ -27,8 +27,7 @@ $res->set_always( headers => $res_headers );
 my $realm = Test::MockObject->new;
 my $find_user_opts;
 my $user = Test::MockObject->new;
-my $user_pw;
-$user->mock( check_password => sub { $user_pw = $_[1]; return 1; } );
+$user->mock(get => sub { return shift->{$_[0]} });
 $realm->mock( find_user => sub { $find_user_opts = $_[1]; return $user; });
 $realm->mock( name => sub { 'foo' } );
 my $c = Test::MockObject->new;
@@ -46,17 +45,17 @@ $c->set_always( req => $req );
 $c->set_always( res => $res );
 $c->set_always( request => $req );
 $c->set_always( response => $res );
-my $config = { type => 'any' };
+my $config = { type => 'any', password_type => 'clear', password_field => 'password' };
 my $raw_self = $m->new($config, $c, $realm);
 my $self = Test::MockObject::Extends->new( $raw_self );
 eval {
     $self->authenticate($c, $realm);
 };
 is($@, $Catalyst::DETACH, 'Calling authenticate for http auth without header detaches');
+$user->{password} = 'bar';
 $req_headers->authorization_basic( qw/foo bar/ );
 ok($self->authenticate($c, $realm), "auth successful with header");
 is($authenticated, 1, 'authenticated once');
-is($user_pw, 'bar', 'password delegated');
 is_deeply( $find_user_opts, { username => 'foo'}, "login delegated");
 $req_headers->clear;
 $c->clear;

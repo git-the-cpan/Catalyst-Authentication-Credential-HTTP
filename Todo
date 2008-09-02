@@ -1,3 +1,5 @@
+* Document the C::A::C::Password stuff properly
+* Digest auth assumes that the user has an accessor called password..
 . shipit
 . Port work's apps.
 . Document how to find the credential module, so that you can call authorization_required_response if you want to.
@@ -9,5 +11,4 @@
 . Document / test 'algorithm' config.
 . Test and document use_uri_for config
 . shipit
-. Steal NTLM from Catalyst::Plugin::Authentication::Store::HTTP
 
