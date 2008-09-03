@@ -13,7 +13,7 @@ BEGIN {
     __PACKAGE__->mk_accessors(qw/_config realm/);
 }
 
-our $VERSION = "1.001";
+our $VERSION = "1.002";
 
 sub new {
     my ($class, $config, $app, $realm) = @_;
@@ -55,7 +55,7 @@ sub authenticate_basic {
     if ( my ( $username, $password ) = $headers->authorization_basic ) {
 	    my $user_obj = $realm->find_user( { username => $username }, $c);
 	    if (ref($user_obj)) {            
-            if ($self->check_password($user_obj, {password => $password})) {
+            if ($self->check_password($user_obj, {$self->_config->{password_field} => $password})) {
                 $c->set_authenticated($user_obj);
                 return $user_obj;
             }
@@ -141,12 +141,13 @@ sub authenticate_digest {
         # the idea of the for loop:
         # if we do not want to store the plain password in our user store,
         # we can store md5_hex("$username:$realm:$password") instead
+        my $password_field = $self->_config->{password_field};
         for my $r ( 0 .. 1 ) {
             # FIXME - Do not assume accessor is called password.
             # calculate H(A1) as per spec
-            my $A1_digest = $r ? $user->password : do {
+            my $A1_digest = $r ? $user->$password_field() : do {
                 $ctx = Digest::MD5->new;
-                $ctx->add( join( ':', $username, $realm->name, $user->password ) );
+                $ctx->add( join( ':', $username, $realm->name, $user->$password_field() ) );
                 $ctx->hexdigest;
             };
             if ( $nonce->algorithm eq 'MD5-sess' ) {

@@ -21,4 +21,4 @@ requires:
   Test::Exception: 0
   Test::MockObject: 0
   URI::Escape: 0
-version: 1.001
+version: 1.002
