@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use Test::More tests => 24;
+use Test::More tests => 31;
 use Test::MockObject::Extends;
 use Test::MockObject;
 use Test::Exception;
@@ -74,6 +74,7 @@ is_deeply( $find_user_opts, { username => 'foo'}, "login delegated");
 
 # Test all the headers look good.
 $req_headers->clear;
+$res_headers->clear;
 $c->clear;
 throws_ok {
     $self->authenticate( $c, $realm );
@@ -86,6 +87,7 @@ like( ($res_headers->header('WWW-Authenticate'))[0], qr/realm="foo"/, "WWW-Authe
 like( ($res_headers->header('WWW-Authenticate'))[1], qr/^Basic/, "WWW-Authenticate header set: basic");
 like( ($res_headers->header('WWW-Authenticate'))[1], qr/realm="foo"/, "WWW-Authenticate header set: basic realm");
 
+$res_headers->clear;
 # Check password_field works
 {
     my $self = new_self( type => 'any', password_type => 'clear', password_field => 'the_other_password' );
@@ -101,14 +103,56 @@ like( ($res_headers->header('WWW-Authenticate'))[1], qr/realm="foo"/, "WWW-Authe
 }
 
 $req_headers->clear;
+$res_headers->clear;
 throws_ok {
     $self->authenticate( $c, $realm, { realm => 'myrealm' }); # Override realm object's name method by doing this.
 } qr/^ $Catalyst::DETACH $/x, "detached on no authorization supplied, overridden realm value";
 is( $status, 401, "401 status code" );
 is( $content_type, 'text/plain' );
 is( $body, 'Authorization required.' );
-TODO: {
-    local $TODO = 'This should work, it (or something very like it) used to work';
-    like( ($res_headers->header('WWW-Authenticate'))[0], qr/realm="myrealm"/, "WWW-Authenticate header set: digest realm overridden");
-    like( ($res_headers->header('WWW-Authenticate'))[1], qr/realm="myrealm"/, "WWW-Authenticate header set: basic realm overridden");
+like( ($res_headers->header('WWW-Authenticate'))[0], qr/realm="myrealm"/, "WWW-Authenticate header set: digest realm overridden");
+like( ($res_headers->header('WWW-Authenticate'))[1], qr/realm="myrealm"/, "WWW-Authenticate header set: basic realm overridden");
+
+# Check authorization_required_message works
+$req_headers->clear;
+$res_headers->clear;
+$c->clear;
+{
+    my $self = new_self( type => 'any', password_type => 'clear',
+        authorization_required_message => 'foobar'
+    );
+    throws_ok {
+        $self->authenticate( $c, $realm );
+    } qr/^ $Catalyst::DETACH $/x, "detached";
+    is( $body, 'foobar', 'Body is supplied auth message');
+}
+
+# Check undef authorization_required_message suppresses crapping in
+# the body.
+$req_headers->clear;
+$res_headers->clear;
+$c->clear;
+{
+    my $self = new_self( type => 'any', password_type => 'clear',
+        authorization_required_message => undef
+    );
+    throws_ok {
+        $self->authenticate( $c, $realm );
+    } qr/^ $Catalyst::DETACH $/x, "detached";
+    is( $body, undef, 'Body is not set - user overrode auth message');
+}
+
+# Check domain config works
+$req_headers->clear;
+$res_headers->clear;
+$c->clear;
+{
+    my $self = new_self( type => 'any', password_type => 'clear',
+        #use_uri_for => 1,
+    );
+    throws_ok {
+        $self->authenticate( $c, $realm, {domain => [qw/dom1 dom2/]} );
+    } qr/^ $Catalyst::DETACH $/x, "detached";
+    like( ($res_headers->header('WWW-Authenticate'))[0], qr/domain="dom1 dom2"/, "WWW-Authenticate header set: digest domains set");
+    like( ($res_headers->header('WWW-Authenticate'))[1], qr/domain="dom1 dom2"/, "WWW-Authenticate header set: basic domains set");
 }

@@ -13,7 +13,7 @@ BEGIN {
     __PACKAGE__->mk_accessors(qw/_config realm/);
 }
 
-our $VERSION = "1.002";
+our $VERSION = "1.003";
 
 sub new {
     my ($class, $config, $app, $realm) = @_;
@@ -248,10 +248,8 @@ sub _create_basic_auth_response {
 }
 
 sub _build_auth_header_realm {
-    my ( $self ) = @_;    
-
-    if ( my $realm = $self->realm ) {
-        my $realm_name = String::Escape::qprintable($realm->name);
+    my ( $self, $c, $opts ) = @_;    
+    if ( my $realm_name = String::Escape::qprintable($opts->{realm} ? $opts->{realm} : $self->realm->name) ) {
         $realm_name = qq{"$realm_name"} unless $realm_name =~ /^"/;
         return 'realm=' . $realm_name;
     } 
@@ -260,7 +258,6 @@ sub _build_auth_header_realm {
 
 sub _build_auth_header_domain {
     my ( $self, $c, $opts ) = @_;
-
     if ( my $domain = $opts->{domain} ) {
         Catalyst::Exception->throw("domain must be an array reference")
           unless ref($domain) && ref($domain) eq "ARRAY";
@@ -277,9 +274,9 @@ sub _build_auth_header_domain {
 
 sub _build_auth_header_common {
     my ( $self, $c, $opts ) = @_;
-
+warn("HERE Opts $opts");
     return (
-        $self->_build_auth_header_realm(),
+        $self->_build_auth_header_realm($c, $opts),
         $self->_build_auth_header_domain($c, $opts),
     );
 }
@@ -406,8 +403,21 @@ for Catalyst.
 
         $c->authenticate({ realm => "example" }); 
         # either user gets authenticated or 401 is sent
+        # Note that the authentication realm sent to the client is overridden
+        # here, but this does not affect the Catalyst::Authentication::Realm
+        # used for authentication.
 
         do_stuff();
+    }
+    
+    sub always_auth : Local {
+        my ( $self, $c ) = @_;
+        
+        # Force authorization headers onto the response so that the user
+        # is asked again for authentication, even if they successfully
+        # authenticated.
+        my $realm = $c->get_auth_realm('example');
+        $realm->credential->authorization_required_response($c, $realm);
     }
 
     # with ACL plugin
@@ -457,15 +467,29 @@ Looks inside C<< $c->request->headers >> and processes the digest and basic
 
 This will only try the methods set in the configuration. First digest, then basic.
 
-This method just passes the options through untouched. See the next two methods for what \%auth_info can contain.
+The %auth_info hash can contain a number of keys which control the authentication behaviour:
+
+=over
+
+=item realm
+
+Sets the HTTP authentication realm presented to the client. Note this does not alter the
+Catalyst::Authentication::Realm object used for the authentication.
+
+=item domain
+
+Array reference to domains used to build the authorization headers.
+
+=back
 
 =item authenticate_basic $c, $realm, \%auth_info
 
-Acts like L<Catalyst::Authentication::Credential::Password>, and will lookup the user's password as detailed in that module.
+Performs HTTP basic authentication.
 
 =item authenticate_digest $c, $realm, \%auth_info
 
-Assumes that your user object has a hard coded method which returns a clear text password.
+Performs HTTP digest authentication. Note that the password_type B<must> by I<clear> for
+digest authentication to succeed.
 
 =item authorization_required_response $c, $realm, \%auth_info
 
@@ -494,7 +518,7 @@ All configuration is stored in C<< YourApp->config(authentication => { yourrealm
 
 This should be a hash, and it can contain the following entries:
 
-=over 4
+=over
 
 =item type
 
@@ -506,6 +530,21 @@ not the "manual" methods.
 =item authorization_required_message
 
 Set this to a string to override the default body content "Authorization required.", or set to undef to suppress body content being generated.
+
+=item password_type
+
+The type of password returned by the user object. Same usage as in 
+L<Catalyst::Authentication::Credential::Password|Catalyst::Authentication::Credential::Password/passwprd_type>
+
+=item password_field
+
+The name of accessor used to retrieve the value of the password field from the user object. Same usage as in 
+L<Catalyst::Authentication::Credential::Password|Catalyst::Authentication::Credential::Password/password_field>
+
+=item use_uri_for
+
+If this configuration key has a true value, then the domain(s) for the authorization header will be
+run through $c->uri_for()
 
 =back
 
