@@ -27,8 +27,6 @@ use HTTP::Request;
                 credential => { 
                     class => 'HTTP', 
                     type  => 'basic',
-                    password_type => 'clear', 
-                    password_field => 'password'
                 },
             },
         },

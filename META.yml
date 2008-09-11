@@ -1,5 +1,5 @@
 ---
-abstract: 'HTTP Basic and Digest authentication'
+abstract: 'Superseded / deprecated module '
 author:
   - 'Updated to current name space and currently maintained'
 distribution_type: module
@@ -21,4 +21,4 @@ requires:
   Test::Exception: 0
   Test::MockObject: 0
   URI::Escape: 0
-version: 1.003
+version: 0.12
