@@ -1,5 +1,5 @@
 package Catalyst::Authentication::Credential::HTTP;
-use base qw/Catalyst::Component/;
+use base qw/Catalyst::Authentication::Credential::Password/;
 
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ BEGIN {
     __PACKAGE__->mk_accessors(qw/_config realm/);
 }
 
-our $VERSION = "0.12";
+our $VERSION = "1.004";
 
 sub new {
     my ($class, $config, $app, $realm) = @_;
@@ -55,7 +55,7 @@ sub authenticate_basic {
     if ( my ( $username, $password ) = $headers->authorization_basic ) {
 	    my $user_obj = $realm->find_user( { username => $username }, $c);
 	    if (ref($user_obj)) {            
-            if ($user_obj->check_password($password)) {
+            if ($self->check_password($user_obj, {$self->_config->{password_field} => $password})) {
                 $c->set_authenticated($user_obj);
                 return $user_obj;
             }
@@ -141,12 +141,12 @@ sub authenticate_digest {
         # the idea of the for loop:
         # if we do not want to store the plain password in our user store,
         # we can store md5_hex("$username:$realm:$password") instead
+        my $password_field = $self->_config->{password_field};
         for my $r ( 0 .. 1 ) {
-
             # calculate H(A1) as per spec
-            my $A1_digest = $r ? $user->password : do {
+            my $A1_digest = $r ? $user->$password_field() : do {
                 $ctx = Digest::MD5->new;
-                $ctx->add( join( ':', $username, $realm->name, $user->password ) );
+                $ctx->add( join( ':', $username, $realm->name, $user->$password_field() ) );
                 $ctx->hexdigest;
             };
             if ( $nonce->algorithm eq 'MD5-sess' ) {
@@ -247,10 +247,8 @@ sub _create_basic_auth_response {
 }
 
 sub _build_auth_header_realm {
-    my ( $self ) = @_;    
-
-    if ( my $realm = $self->realm ) {
-        my $realm_name = String::Escape::qprintable($realm->name);
+    my ( $self, $c, $opts ) = @_;    
+    if ( my $realm_name = String::Escape::qprintable($opts->{realm} ? $opts->{realm} : $self->realm->name) ) {
         $realm_name = qq{"$realm_name"} unless $realm_name =~ /^"/;
         return 'realm=' . $realm_name;
     } 
@@ -259,7 +257,6 @@ sub _build_auth_header_realm {
 
 sub _build_auth_header_domain {
     my ( $self, $c, $opts ) = @_;
-
     if ( my $domain = $opts->{domain} ) {
         Catalyst::Exception->throw("domain must be an array reference")
           unless ref($domain) && ref($domain) eq "ARRAY";
@@ -276,9 +273,8 @@ sub _build_auth_header_domain {
 
 sub _build_auth_header_common {
     my ( $self, $c, $opts ) = @_;
-
     return (
-        $self->_build_auth_header_realm(),
+        $self->_build_auth_header_realm($c, $opts),
         $self->_build_auth_header_domain($c, $opts),
     );
 }
@@ -372,8 +368,8 @@ __END__
 
 =head1 NAME
 
-Catalyst::Authentication::Credential::HTTP - Superseded / deprecated module 
-providing HTTP Basic and Digest authentication for Catalyst applications.
+Catalyst::Authentication::Credential::HTTP - HTTP Basic and Digest authentication
+for Catalyst.
 
 =head1 SYNOPSIS
 
@@ -387,6 +383,8 @@ providing HTTP Basic and Digest authentication for Catalyst applications.
                 credential => { 
                     class => 'HTTP',
                     type  => 'any', # or 'digest' or 'basic'
+                    password_type  => 'clear',
+                    password_field => 'password'
                 },
                 store => {
                     class => 'Minimal',
@@ -403,26 +401,25 @@ providing HTTP Basic and Digest authentication for Catalyst applications.
 
         $c->authenticate({ realm => "example" }); 
         # either user gets authenticated or 401 is sent
+        # Note that the authentication realm sent to the client is overridden
+        # here, but this does not affect the Catalyst::Authentication::Realm
+        # used for authentication.
 
         do_stuff();
+    }
+    
+    sub always_auth : Local {
+        my ( $self, $c ) = @_;
+        
+        # Force authorization headers onto the response so that the user
+        # is asked again for authentication, even if they successfully
+        # authenticated.
+        my $realm = $c->get_auth_realm('example');
+        $realm->credential->authorization_required_response($c, $realm);
     }
 
     # with ACL plugin
     __PACKAGE__->deny_access_unless("/path", sub { $_[0]->authenticate });
-
-=head1 DEPRECATION NOTICE
-
-Please note that this module is B<DEPRECATED>, it has been Superseded by
-L<Catalyst::Authentication::Credential::HTTP>, please use that module in
-any new projects.
-
-Porting existing projects to use the new module should also be easy, and
-if there are any facilities in this module which you cannot see how to achieve
-in the new module then I<please contact the maintainer> as this is a bug and 
-I<will be fixed>.
-
-Let me say that again: B<THIS MODULE IS NOT SUPPORTED>, use 
-L<Catalyst::Authentication::Credential::HTTP> instead.
 
 =head1 DESCRIPTION
 
@@ -468,14 +465,33 @@ Looks inside C<< $c->request->headers >> and processes the digest and basic
 
 This will only try the methods set in the configuration. First digest, then basic.
 
-This method just passes the options through untouched. See the next two methods for what \%auth_info can contain.
+The %auth_info hash can contain a number of keys which control the authentication behaviour:
+
+=over
+
+=item realm
+
+Sets the HTTP authentication realm presented to the client. Note this does not alter the
+Catalyst::Authentication::Realm object used for the authentication.
+
+=item domain
+
+Array reference to domains used to build the authorization headers.
+
+=back
 
 =item authenticate_basic $c, $realm, \%auth_info
 
+Performs HTTP basic authentication.
+
 =item authenticate_digest $c, $realm, \%auth_info
 
-Try to authenticate one of the methods without checking if the method is
-allowed in the configuration.
+Performs HTTP digest authentication. Note that the password_type B<must> by I<clear> for
+digest authentication to succeed, and you must have L<Catalyst::Plugin::Session> in
+your application as digest authentication needs to store persistent data.
+
+Note - if you do not want to store your user passwords as clear text, then it is possible
+to store instead the MD5 digest in hex of the string '$username:$realm:$password' 
 
 =item authorization_required_response $c, $realm, \%auth_info
 
@@ -504,7 +520,7 @@ All configuration is stored in C<< YourApp->config(authentication => { yourrealm
 
 This should be a hash, and it can contain the following entries:
 
-=over 4
+=over
 
 =item type
 
@@ -516,6 +532,21 @@ not the "manual" methods.
 =item authorization_required_message
 
 Set this to a string to override the default body content "Authorization required.", or set to undef to suppress body content being generated.
+
+=item password_type
+
+The type of password returned by the user object. Same usage as in 
+L<Catalyst::Authentication::Credential::Password|Catalyst::Authentication::Credential::Password/passwprd_type>
+
+=item password_field
+
+The name of accessor used to retrieve the value of the password field from the user object. Same usage as in 
+L<Catalyst::Authentication::Credential::Password|Catalyst::Authentication::Credential::Password/password_field>
+
+=item use_uri_for
+
+If this configuration key has a true value, then the domain(s) for the authorization header will be
+run through $c->uri_for()
 
 =back
 
