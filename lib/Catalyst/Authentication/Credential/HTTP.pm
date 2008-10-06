@@ -13,11 +13,12 @@ BEGIN {
     __PACKAGE__->mk_accessors(qw/_config realm/);
 }
 
-our $VERSION = "1.005";
+our $VERSION = "1.006";
 
 sub new {
     my ($class, $config, $app, $realm) = @_;
     
+    $config->{username_field} ||= 'username';
     my $self = { _config => $config, _debug => $app->debug };
     bless $self, $class;
     
@@ -58,7 +59,7 @@ sub authenticate_basic {
     my $headers = $c->req->headers;
 
     if ( my ( $username, $password ) = $headers->authorization_basic ) {
-	    my $user_obj = $realm->find_user( { username => $username }, $c);
+	    my $user_obj = $realm->find_user( { $self->_config->{username_field} => $username }, $c);
 	    if (ref($user_obj)) {            
             if ($self->check_password($user_obj, {$self->_config->{password_field} => $password})) {
                 $c->set_authenticated($user_obj);
@@ -125,7 +126,7 @@ sub authenticate_digest {
         my $user;
 
         unless ( $user = $auth_info->{user} ) {
-            $user = $realm->find_user( { username => $username }, $c);
+            $user = $realm->find_user( { $self->_config->{username_field} => $username }, $c);
         }
         unless ($user) {    # no user, no authentication
             $c->log->debug("Unable to locate user matching user info provided") if $c->debug;
@@ -383,6 +384,7 @@ for Catalyst.
     /;
 
     __PACKAGE__->config( authentication => {
+        default_realm => 'example',
         realms => { 
             example => { 
                 credential => { 
@@ -406,9 +408,11 @@ for Catalyst.
 
         $c->authenticate({ realm => "example" }); 
         # either user gets authenticated or 401 is sent
-        # Note that the authentication realm sent to the client is overridden
-        # here, but this does not affect the Catalyst::Authentication::Realm
-        # used for authentication.
+        # Note that the authentication realm sent to the client (in the 
+        # RFC 2617 sense) is overridden here, but this *does not* 
+        # effect the Catalyst::Authentication::Realm used for 
+        # authentication - to do that, you need 
+        # $c->authenticate({}, 'otherrealm')
 
         do_stuff();
     }
@@ -562,12 +566,16 @@ Set this to a string to override the default body content "Authorization require
 =item password_type
 
 The type of password returned by the user object. Same usage as in 
-L<Catalyst::Authentication::Credential::Password|Catalyst::Authentication::Credential::Password/passwprd_type>
+L<Catalyst::Authentication::Credential::Password|Catalyst::Authentication::Credential::Password/password_type>
 
 =item password_field
 
 The name of accessor used to retrieve the value of the password field from the user object. Same usage as in 
 L<Catalyst::Authentication::Credential::Password|Catalyst::Authentication::Credential::Password/password_field>
+
+=item username_field
+
+The field name that the user's username is mapped into when finding the user from the realm. Defaults to 'username'.
 
 =item use_uri_for
 

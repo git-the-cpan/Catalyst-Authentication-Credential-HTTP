@@ -22,4 +22,4 @@ requires:
   Test::Exception: 0
   Test::MockObject: 0
   URI::Escape: 0
-version: 1.005
+version: 1.006
