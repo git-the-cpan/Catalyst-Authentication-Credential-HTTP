@@ -22,4 +22,6 @@ requires:
   Test::Exception: 0
   Test::MockObject: 0
   URI::Escape: 0
-version: 1.006
+resources:
+  repository: http://dev.catalyst.perl.org/repos/Catalyst/Catalyst-Authentication-Credential-HTTP
+version: 1.007
