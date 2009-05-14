@@ -20,7 +20,7 @@ __PACKAGE__->mk_accessors(qw/
     use_uri_for
 /);
 
-our $VERSION = '1.009';
+our $VERSION = '1.010';
 
 sub new {
     my ($class, $config, $app, $realm) = @_;
@@ -71,14 +71,19 @@ sub authenticate_basic {
 	    my $user_obj = $realm->find_user( { $self->username_field => $username }, $c);
 	    if (ref($user_obj)) {
             my $opts = {};
-            $opts->{$self->password_field} = $password 
-                if $self->password_field;            
+            $opts->{$self->password_field} = $password
+                if $self->password_field;
             if ($self->check_password($user_obj, $opts)) {
                 return $user_obj;
             }
-        }
-        else {
-            $c->log->debug("Unable to locate user matching user info provided") if $c->debug;
+            else {
+                $c->log->debug("Password mismatch!") if $c->debug;
+                return;
+            }
+         }
+         else {
+             $c->log->debug("Unable to locate user matching user info provided")
+                if $c->debug;
             return;
         }
     }
@@ -629,6 +634,8 @@ Patches contributed by:
 =over
 
 =item Peter Corlett
+
+=item Devin Austin (dhoss) C<dhoss@cpan.org>
 
 =back
 

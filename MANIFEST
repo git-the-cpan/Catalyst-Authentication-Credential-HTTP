@@ -19,6 +19,8 @@ t/02pod.t
 t/03podcoverage.t
 t/04pod_spelling.t
 t/basic.t
+t/lib/AuthDigestTestApp.pm
+t/lib/AuthTestApp.pm
 t/live_app.t
 t/live_app_digest.t
 Todo
