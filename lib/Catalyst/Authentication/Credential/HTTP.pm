@@ -20,14 +20,14 @@ __PACKAGE__->mk_accessors(qw/
     use_uri_for
 /);
 
-our $VERSION = '1.010';
+our $VERSION = '1.011';
 
 sub new {
     my ($class, $config, $app, $realm) = @_;
     
     $config->{username_field} ||= 'username';
     # _config is shity back-compat with our base class.
-    my $self = { %$config, _config => $config, _debug => $app->debug };
+    my $self = { %$config, _config => $config, _debug => $app->debug ? 1 : 0 };
     bless $self, $class;
     
     $self->realm($realm);
