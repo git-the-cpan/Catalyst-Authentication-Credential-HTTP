@@ -4,13 +4,13 @@ package Module::Install::Base;
 use strict 'vars';
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '0.91';
+	$VERSION = '0.99';
 }
 
 # Suspend handler for "redefined" warnings
 BEGIN {
-#	my $w = $SIG{__WARN__};
-#	$SIG{__WARN__} = sub { $w };
+	my $w = $SIG{__WARN__};
+	$SIG{__WARN__} = sub { $w };
 }
 
 #line 42
@@ -51,12 +51,17 @@ sub admin {
 #line 106
 
 sub is_admin {
-	$_[0]->admin->VERSION;
+	! $_[0]->admin->isa('Module::Install::Base::FakeAdmin');
 }
 
 sub DESTROY {}
 
 package Module::Install::Base::FakeAdmin;
+
+use vars qw{$VERSION};
+BEGIN {
+	$VERSION = $Module::Install::Base::VERSION;
+}
 
 my $fake;
 
@@ -70,9 +75,9 @@ sub DESTROY {}
 
 # Restore warning handler
 BEGIN {
-#	$SIG{__WARN__} = $SIG{__WARN__}->();
+	$SIG{__WARN__} = $SIG{__WARN__}->();
 }
 
 1;
 
-#line 154
+#line 159
