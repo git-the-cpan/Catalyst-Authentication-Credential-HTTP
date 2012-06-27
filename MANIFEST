@@ -1,3 +1,5 @@
+.gitignore
+Catalyst-Authentication-Credential-HTTP-1.014.tar.gz
 Changes
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
@@ -22,10 +24,13 @@ t/author/pod.t
 t/author/pod_spelling.t
 t/author/podcoverage.t
 t/basic.t
+t/lib/AuthDigestDotnetTestApp.pm
+t/lib/AuthDigestDotnetTestApp/Controller/Root.pm
 t/lib/AuthDigestTestApp.pm
 t/lib/AuthDigestTestApp/Controller/Root.pm
 t/lib/AuthTestApp.pm
 t/lib/AuthTestApp/Controller/Root.pm
 t/live_app.t
 t/live_app_digest.t
+t/live_app_digest_dotnet.t
 Todo
