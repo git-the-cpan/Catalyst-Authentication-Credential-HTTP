@@ -30,5 +30,5 @@ requires:
   URI::Escape: 0
 resources:
   license: http://dev.perl.org/licenses/
-  repository: http://dev.catalyst.perl.org/repos/Catalyst/Catalyst-Authentication-Credential-HTTP
-version: 1.015
+  repository: git://git.shadowcat.co.uk/catagits/Catalyst/Catalyst-Authentication-Credential-HTTP
+version: 1.016

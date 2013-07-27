@@ -1,5 +1,4 @@
 .gitignore
-Catalyst-Authentication-Credential-HTTP-1.014.tar.gz
 Changes
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
